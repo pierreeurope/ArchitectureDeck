@@ -1,88 +1,261 @@
+# ArchitectureDeck 🏗️
 
-# ArchitectureDeck
+AI-powered architecture and diagram builder. Describe your product or provide a GitHub repository URL to generate complete architecture plans with Mermaid diagrams.
 
-An AI architecture and diagram builder for product teams
+![ArchitectureDeck](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript)
+![Prisma](https://img.shields.io/badge/Prisma-5.22-2D3748?style=flat-square&logo=prisma)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis)
 
-ArchDock turns either (1) a GitHub repository or (2) a plain English idea into a clear system design. It outputs a practical architecture plan, an opinionated tech stack, tradeoffs, and a high quality diagram that matches the target scale and constraints.
+## ✨ Features
 
-## Why this exists
+- **AI-Powered Design Generation** - Submit a prompt or GitHub URL to generate architecture plans
+- **Scale-Aware Architecture** - Choose from Prototype, 1K DAU, or 1M DAU profiles
+- **Mermaid Diagrams** - Auto-generated flowcharts rendered as SVG
+- **Version Control** - Track all iterations of your designs
+- **Constraint System** - Specify technologies to include or avoid
+- **Real-time Progress** - Watch generation progress with Redis-backed job queue
 
-Most teams waste time on vague “architecture brainstorming” that never becomes a concrete plan.ArchitectureDeck focuses on deliverables that help you build faster.
+## 🛠️ Tech Stack
 
-* A short architecture spec you can implement
-* A stack recommendation aligned with constraints
-* Diagrams that communicate clearly to engineers and stakeholders
-* Scale-aware variants such as prototype, 1k DAU, 1M DAU
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 14, React, Tailwind CSS |
+| API | tRPC, TypeScript |
+| Database | PostgreSQL, Prisma ORM |
+| Cache/Queue | Redis, BullMQ |
+| Diagrams | Mermaid |
 
-## What it does
+## 📋 Prerequisites
 
-### Inputs
+- Node.js 18+
+- PostgreSQL 14+
+- Redis 7+
+- pnpm (recommended) or npm
 
-You can start from either:
+## 🚀 Local Development Setup
 
-1. **GitHub repository URL**
+### 1. Clone and Install
 
-   ArchitectureDeck ingests repo metadata and files to infer:
+```bash
+git clone https://github.com/yourorg/architecture-deck.git
+cd architecture-deck
+pnpm install
+```
 
-* current stack and structure
-* services and modules
-* data flows
-* infra assumptions
-* risks and missing pieces
+### 2. Environment Configuration
 
-2. **Prompt based idea**
+Create a `.env` file in the project root:
 
-   Example
+```env
+# Database
+DATABASE_URL="postgresql://postgres:password@localhost:5432/architecture_deck?schema=public"
 
-   “Build an enterprise AI chat with SSO, RAG search over documents, and audit logs.”
+# Redis
+REDIS_URL="redis://localhost:6379"
 
-### Constraints
+# App
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
-Users can specify:
+# Rate Limiting
+RATE_LIMIT_REQUESTS_PER_MINUTE=10
 
-* Must use technologies such as AWS only
-* Avoid technologies such as GCP or Kafka
-* Preferred language such as TypeScript first or Python first
-* Data constraints such as GDPR, encryption, retention
-* Budget constraints such as minimal infra spend
-* Team constraints such as 1 engineer vs 5 engineers
+# OpenAI API Key (required for AI generation)
+OPENAI_API_KEY="sk-your-openai-api-key-here"
+```
 
-### Scale profiles
+> ⚠️ **Important:** The `OPENAI_API_KEY` is required for architecture generation. Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys).
 
-ArchitectureDeck generates architectures adapted to scale targets:
+### 3. Start Services
 
-* **Prototype** : few users, fastest iteration, minimal ops
-* **1,000 DAU** : reliability and observability baseline
-* **1,000,000 DAU** : multi region, queues, caching, SLOs, cost control
+**PostgreSQL:**
+```bash
+# Using Docker
+docker run -d --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 postgres:16
 
-### Outputs
+# Or use local PostgreSQL
+createdb architecture_deck
+```
 
-ArchitectureDeck generates:
+**Redis:**
+```bash
+# Using Docker
+docker run -d --name redis -p 6379:6379 redis:7-alpine
 
-* Architecture overview and component list
-* Data model suggestions
-* API design suggestions
-* Non functional requirements, SLOs, risks, mitigations
-* Phased roadmap, MVP first then hardening
-* Diagram export as Mermaid and SVG or PNG
+# Or use local Redis
+redis-server
+```
 
-## Core product flows
+### 4. Database Setup
 
-1. **Create a design**
+```bash
+# Generate Prisma client
+pnpm db:generate
 
-* User uploads repo or writes a prompt
-* User selects constraints and scale
-* ArchitectureDeck produces a “Design” artifact plus diagram
+# Run migrations
+pnpm db:migrate
 
-2. **Compare options**
+# Seed demo data (optional)
+pnpm db:seed
+```
 
-* Typescript first vs Python first
-* Monolith vs modular services
-* Build vs buy recommendations
-* Tradeoff table
+### 5. Start Development Servers
 
-3. **Iterate**
+**Terminal 1 - Next.js App:**
+```bash
+pnpm dev
+```
 
-* Follow up questions
-* Update constraints
-* Re generate diagram and plan with diffs
+**Terminal 2 - Background Worker:**
+```bash
+pnpm worker
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 📁 Project Structure
+
+```
+architecture-deck/
+├── prisma/
+│   ├── schema.prisma       # Database schema
+│   └── seed.ts             # Demo data seeder
+├── public/
+│   └── favicon.svg
+├── src/
+│   ├── components/
+│   │   ├── designs/        # Design-related components
+│   │   ├── layout/         # Layout components
+│   │   ├── projects/       # Project-related components
+│   │   └── ui/             # Reusable UI components
+│   ├── lib/
+│   │   ├── db.ts           # Prisma client
+│   │   ├── queue.ts        # BullMQ queue setup
+│   │   ├── redis.ts        # Redis client & utilities
+│   │   ├── trpc.ts         # tRPC client
+│   │   └── utils.ts        # Helper functions
+│   ├── pages/
+│   │   ├── api/trpc/       # tRPC API handler
+│   │   ├── projects/       # Project pages
+│   │   └── index.tsx       # Home page
+│   ├── server/
+│   │   ├── routers/        # tRPC routers
+│   │   └── trpc.ts         # tRPC server setup
+│   ├── styles/
+│   │   └── globals.css     # Global styles
+│   └── worker/
+│       ├── generator.ts    # Mock AI generator
+│       ├── index.ts        # Worker entry point
+│       └── renderer.ts     # Mermaid renderer
+├── Deployment.md           # AWS deployment guide
+├── package.json
+└── README.md
+```
+
+## 🔌 API Endpoints (tRPC)
+
+### Projects
+- `projects.list` - List all projects
+- `projects.get` - Get project by ID
+- `projects.create` - Create new project
+- `projects.update` - Update project
+- `projects.delete` - Delete project
+
+### Designs
+- `designs.createRequest` - Create design request (triggers generation)
+- `designs.getRequest` - Get design request
+- `designs.listRequests` - List requests for project
+- `designs.getVersion` - Get specific design version
+- `designs.listVersions` - List all versions
+- `designs.getDiagram` - Get diagram for design
+
+### Jobs
+- `jobs.getStatus` - Get job status (real-time)
+- `jobs.listByDesignRequest` - List jobs for design
+
+## 📊 Data Model
+
+```
+User
+ └── Project (1:N)
+      └── DesignRequest (1:N)
+           ├── DesignVersion (1:N)
+           │    └── DiagramVersion (1:N)
+           ├── DiagramVersion (1:N)
+           └── Job (1:N)
+```
+
+## 🔄 Design Generation Pipeline
+
+1. **Submit** - User submits prompt or repo URL with constraints
+2. **Validate** - Input validation via Zod schemas
+3. **Persist** - Create DesignRequest row in PostgreSQL
+4. **Queue** - Enqueue job in Redis via BullMQ
+5. **Process** - Worker generates design using mock AI
+6. **Render** - Convert Mermaid to SVG (or store for client-side render)
+7. **Store** - Save DesignVersion + DiagramVersion
+8. **Complete** - Update job status, notify client
+
+## 🎨 Customization
+
+### AI Generation
+
+The architecture generation uses **OpenAI GPT-4o** to create comprehensive designs. The generator:
+
+1. Accepts your product description or GitHub repo URL
+2. Considers scale profile (Prototype, 1K DAU, 1M DAU)
+3. Respects technology constraints (must use / avoid)
+4. Returns structured JSON with components, data stores, APIs, security, and roadmap
+5. Generates a Mermaid diagram matching the architecture
+
+If OpenAI is unavailable, it falls back to a deterministic mock generator.
+
+### Custom Diagram Themes
+
+Edit the Mermaid theme in `src/styles/globals.css`:
+
+```css
+.mermaid .node rect {
+  fill: #your-color !important;
+  stroke: #your-border !important;
+}
+```
+
+## 🧪 Testing
+
+```bash
+# Run type checking
+pnpm type-check
+
+# Run linting
+pnpm lint
+
+# Open Prisma Studio
+pnpm db:studio
+```
+
+## 📦 Production Build
+
+```bash
+# Build application
+pnpm build
+
+# Start production server
+pnpm start
+
+# Start production worker
+pnpm worker:prod
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.

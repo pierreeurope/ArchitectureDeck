@@ -1,0 +1,162 @@
+import { z } from "zod";
+import { router, protectedProcedure } from "../trpc";
+import { TRPCError } from "@trpc/server";
+
+export const projectsRouter = router({
+  // List all projects for the current user
+  list: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        cursor: z.string().nullish(),
+      }).optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 20;
+      const cursor = input?.cursor;
+
+      const projects = await ctx.db.project.findMany({
+        where: { userId: ctx.userId },
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: { createdAt: "desc" },
+        include: {
+          _count: {
+            select: { designRequests: true },
+          },
+        },
+      });
+
+      let nextCursor: string | undefined;
+      if (projects.length > limit) {
+        const nextItem = projects.pop();
+        nextCursor = nextItem?.id;
+      }
+
+      return {
+        items: projects,
+        nextCursor,
+      };
+    }),
+
+  // Get a single project by ID
+  get: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const project = await ctx.db.project.findFirst({
+        where: {
+          id: input.id,
+          userId: ctx.userId,
+        },
+        include: {
+          designRequests: {
+            orderBy: { createdAt: "desc" },
+            take: 10,
+            include: {
+              _count: {
+                select: { designVersions: true },
+              },
+              jobs: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+              },
+            },
+          },
+          _count: {
+            select: { designRequests: true },
+          },
+        },
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      return project;
+    }),
+
+  // Create a new project
+  create: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(100),
+        description: z.string().max(500).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // First, ensure the user exists (create if not for MVP)
+      await ctx.db.user.upsert({
+        where: { id: ctx.userId },
+        update: {},
+        create: {
+          id: ctx.userId,
+          email: `${ctx.userId}@demo.architecturedeck.com`,
+          name: "Demo User",
+        },
+      });
+
+      const project = await ctx.db.project.create({
+        data: {
+          name: input.name,
+          description: input.description,
+          userId: ctx.userId,
+        },
+      });
+
+      return project;
+    }),
+
+  // Update a project
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(100).optional(),
+        description: z.string().max(500).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+
+      const existing = await ctx.db.project.findFirst({
+        where: { id, userId: ctx.userId },
+      });
+
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      return ctx.db.project.update({
+        where: { id },
+        data,
+      });
+    }),
+
+  // Delete a project
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.project.findFirst({
+        where: { id: input.id, userId: ctx.userId },
+      });
+
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      await ctx.db.project.delete({
+        where: { id: input.id },
+      });
+
+      return { success: true };
+    }),
+});

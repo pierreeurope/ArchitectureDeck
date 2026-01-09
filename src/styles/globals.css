@@ -1,0 +1,233 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-cabinet: "Outfit", system-ui, sans-serif;
+  --font-geist-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-geist-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    @apply bg-ink text-void-100 font-sans;
+    background-image: 
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 245, 212, 0.1), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(247, 37, 133, 0.08), transparent);
+  }
+
+  * {
+    @apply border-void-800;
+  }
+
+  ::selection {
+    @apply bg-neon-cyan/30 text-white;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-ink-light;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-void-700 rounded-full hover:bg-void-600 transition-colors;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-ink disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-neon-cyan to-emerald-400 text-ink hover:opacity-90 focus:ring-neon-cyan shadow-lg shadow-neon-cyan/20;
+  }
+
+  .btn-secondary {
+    @apply btn bg-void-800 text-void-100 hover:bg-void-700 focus:ring-void-600 border border-void-700;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-void-300 hover:text-void-100 hover:bg-void-800/50;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600/20 text-red-400 hover:bg-red-600/30 focus:ring-red-500 border border-red-600/30;
+  }
+
+  .card {
+    @apply bg-ink-light border border-void-800 rounded-xl overflow-hidden;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300 hover:border-void-600 hover:shadow-lg hover:shadow-neon-cyan/5;
+  }
+
+  .input {
+    @apply w-full px-4 py-3 bg-ink border border-void-700 rounded-lg text-void-100 placeholder:text-void-500 focus:outline-none focus:ring-2 focus:ring-neon-cyan/50 focus:border-neon-cyan/50 transition-all;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-void-300 mb-2;
+  }
+
+  .textarea {
+    @apply input resize-none;
+  }
+
+  .select {
+    @apply input appearance-none cursor-pointer bg-no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239fb3c8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1.25rem;
+    padding-right: 2.5rem;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-500/20 text-amber-400 border border-amber-500/30;
+  }
+
+  .badge-error {
+    @apply badge bg-red-500/20 text-red-400 border border-red-500/30;
+  }
+
+  .badge-info {
+    @apply badge bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30;
+  }
+
+  .badge-neutral {
+    @apply badge bg-void-700 text-void-300 border border-void-600;
+  }
+
+  .link {
+    @apply text-neon-cyan hover:text-neon-cyan/80 underline underline-offset-2 transition-colors;
+  }
+
+  .section-title {
+    @apply text-2xl font-bold text-void-100 font-display tracking-tight;
+  }
+
+  .prose-dark {
+    @apply prose prose-invert prose-headings:text-void-100 prose-p:text-void-300 prose-strong:text-void-200 prose-code:text-neon-cyan prose-code:bg-ink prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-ink prose-pre:border prose-pre:border-void-800;
+  }
+
+  /* Diagram container */
+  .diagram-container {
+    @apply bg-ink-light border border-void-800 rounded-xl p-6 overflow-auto;
+  }
+
+  .diagram-container svg {
+    @apply max-w-full h-auto;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    @apply relative overflow-hidden;
+    background: linear-gradient(
+      90deg,
+      theme("colors.void.800") 0%,
+      theme("colors.void.700") 50%,
+      theme("colors.void.800") 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-neon-cyan via-emerald-400 to-neon-lime bg-clip-text text-transparent;
+  }
+
+  .text-gradient-magenta {
+    @apply bg-gradient-to-r from-neon-magenta via-pink-400 to-rose-400 bg-clip-text text-transparent;
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 20px theme("colors.neon.cyan / 30%"),
+                0 0 40px theme("colors.neon.cyan / 10%");
+  }
+
+  .glow-magenta {
+    box-shadow: 0 0 20px theme("colors.neon.magenta / 30%"),
+                0 0 40px theme("colors.neon.magenta / 10%");
+  }
+
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+}
+
+/* Mermaid diagram theming */
+.mermaid {
+  @apply font-mono;
+}
+
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node ellipse,
+.mermaid .node polygon {
+  fill: theme("colors.ink.lighter") !important;
+  stroke: theme("colors.void.600") !important;
+  stroke-width: 2px !important;
+}
+
+.mermaid .node .label {
+  color: theme("colors.void.100") !important;
+  fill: theme("colors.void.100") !important;
+}
+
+.mermaid .edgePath .path {
+  stroke: theme("colors.neon.cyan") !important;
+  stroke-width: 2px !important;
+}
+
+.mermaid .edgeLabel {
+  background-color: theme("colors.ink.light") !important;
+  color: theme("colors.void.300") !important;
+}
+
+.mermaid .cluster rect {
+  fill: theme("colors.ink.DEFAULT") !important;
+  stroke: theme("colors.void.700") !important;
+  stroke-dasharray: 5, 5 !important;
+}
+
+.mermaid .cluster .label {
+  color: theme("colors.void.400") !important;
+}

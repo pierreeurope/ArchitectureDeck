@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// User Management
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  projects       Project[]
+  designRequests DesignRequest[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================================================
+// Project Organization
+// ============================================================================
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String   @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designRequests DesignRequest[]
+
+  @@index([userId])
+  @@map("projects")
+}
+
+// ============================================================================
+// Design Request & Versions
+// ============================================================================
+
+enum InputType {
+  PROMPT
+  REPO_URL
+}
+
+enum ScaleProfile {
+  PROTOTYPE    // Quick PoC, no scale considerations
+  DAU_1K       // 1,000 daily active users
+  DAU_1M       // 1,000,000 daily active users
+}
+
+model DesignRequest {
+  id           String       @id @default(cuid())
+  title        String
+  inputType    InputType    @map("input_type")
+  promptText   String?      @map("prompt_text")
+  repoUrl      String?      @map("repo_url")
+  scaleProfile ScaleProfile @default(PROTOTYPE) @map("scale_profile")
+
+  // Constraints stored as JSONB
+  constraints Json @default("{}")
+
+  projectId String @map("project_id")
+  userId    String @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designVersions  DesignVersion[]
+  diagramVersions DiagramVersion[]
+  jobs            Job[]
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("design_requests")
+}
+
+model DesignVersion {
+  id              String @id @default(cuid())
+  version         Int    @default(1)
+  designRequestId String @map("design_request_id")
+
+  // Structured design output stored as JSONB
+  // Contains: components, dataStores, apis, security, scaleChanges, roadmap
+  designData Json @map("design_data")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  designRequest   DesignRequest    @relation(fields: [designRequestId], references: [id], onDelete: Cascade)
+  diagramVersions DiagramVersion[]
+
+  @@unique([designRequestId, version])
+  @@index([designRequestId])
+  @@map("design_versions")
+}
+
+model DiagramVersion {
+  id              String  @id @default(cuid())
+  version         Int     @default(1)
+  designRequestId String  @map("design_request_id")
+  designVersionId String? @map("design_version_id")
+
+  // Mermaid source and rendered SVG
+  mermaidSource String  @map("mermaid_source")
+  svgContent    String? @map("svg_content")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  designRequest DesignRequest  @relation(fields: [designRequestId], references: [id], onDelete: Cascade)
+  designVersion DesignVersion? @relation(fields: [designVersionId], references: [id], onDelete: SetNull)
+
+  @@unique([designRequestId, version])
+  @@index([designRequestId])
+  @@index([designVersionId])
+  @@map("diagram_versions")
+}
+
+// ============================================================================
+// Job Queue Tracking
+// ============================================================================
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum JobType {
+  GENERATE_DESIGN
+  RENDER_DIAGRAM
+}
+
+model Job {
+  id              String    @id @default(cuid())
+  type            JobType
+  status          JobStatus @default(PENDING)
+  progress        Int       @default(0) // 0-100
+  designRequestId String    @map("design_request_id")
+
+  // Job metadata and error info
+  metadata Json?   @default("{}")
+  error    String?
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  designRequest DesignRequest @relation(fields: [designRequestId], references: [id], onDelete: Cascade)
+
+  @@index([designRequestId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("jobs")
+}
