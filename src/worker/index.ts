@@ -44,20 +44,35 @@ const designWorker = new Worker<GenerateDesignJobData>(
   "design-generation",
   async (job: Job<GenerateDesignJobData>) => {
     const redis = createConnection();
-    const { jobId, designRequestId, inputType, promptText, repoUrl, constraints, scaleProfile } = job.data;
+    const { 
+      jobId, 
+      designRequestId, 
+      inputType, 
+      promptText, 
+      repoUrl, 
+      constraints, 
+      scaleProfile,
+      detailLevel,
+      suggestions,
+      refinementPrompt,
+      existingDesign,
+    } = job.data;
 
-    console.log(`[Worker] Processing design job ${jobId} for request ${designRequestId}`);
+    const isRefinement = !!refinementPrompt && !!existingDesign;
+    console.log(`[Worker] Processing ${isRefinement ? 'refinement' : 'design'} job ${jobId} for request ${designRequestId}`);
 
     try {
       // Update job status: starting
-      await updateJobStatus(redis, jobId, "PROCESSING", 10, "Starting design generation...");
+      const startMessage = isRefinement ? "Starting design refinement..." : "Starting design generation...";
+      await updateJobStatus(redis, jobId, "PROCESSING", 10, startMessage);
       await db.job.update({
         where: { id: jobId },
         data: { status: "PROCESSING", startedAt: new Date(), progress: 10 },
       });
 
-      // Generate design
-      await updateJobStatus(redis, jobId, "PROCESSING", 30, "Analyzing requirements...");
+      // Generate/refine design
+      const analyzeMessage = isRefinement ? "Analyzing refinement request..." : "Analyzing requirements...";
+      await updateJobStatus(redis, jobId, "PROCESSING", 30, analyzeMessage);
 
       const input: DesignInput = {
         inputType,
@@ -69,9 +84,14 @@ const designWorker = new Worker<GenerateDesignJobData>(
           preferredLanguage: constraints.preferredLanguage,
         },
         scaleProfile,
+        detailLevel: detailLevel || "STANDARD",
+        suggestions: suggestions || [],
+        refinementPrompt,
+        existingDesign: existingDesign as any,
       };
 
-      await updateJobStatus(redis, jobId, "PROCESSING", 50, "Generating architecture...");
+      const genMessage = isRefinement ? "Refining architecture..." : "Generating architecture...";
+      await updateJobStatus(redis, jobId, "PROCESSING", 50, genMessage);
       const result = await generateDesign(input);
 
       // Get next version number

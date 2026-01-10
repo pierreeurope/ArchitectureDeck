@@ -39,14 +39,17 @@ export const projectsRouter = router({
       };
     }),
 
-  // Get a single project by ID
+  // Get a single project by ID (or template accessible to all)
   get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const project = await ctx.db.project.findFirst({
         where: {
           id: input.id,
-          userId: ctx.userId,
+          OR: [
+            { userId: ctx.userId },
+            { isTemplate: true },
+          ],
         },
         include: {
           designRequests: {
@@ -158,5 +161,89 @@ export const projectsRouter = router({
       });
 
       return { success: true };
+    }),
+
+  // List all template projects (accessible to all users)
+  listTemplates: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+      }).optional()
+    )
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 20;
+
+      const templates = await ctx.db.project.findMany({
+        where: { isTemplate: true },
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          _count: {
+            select: { designRequests: true },
+          },
+          designRequests: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            include: {
+              designVersions: {
+                orderBy: { version: "desc" },
+                take: 1,
+              },
+            },
+          },
+        },
+      });
+
+      return {
+        items: templates,
+      };
+    }),
+
+  // Get a template project by ID (accessible to all users)
+  getTemplate: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const template = await ctx.db.project.findFirst({
+        where: {
+          id: input.id,
+          isTemplate: true,
+        },
+        include: {
+          designRequests: {
+            orderBy: { createdAt: "desc" },
+            include: {
+              _count: {
+                select: { designVersions: true },
+              },
+              designVersions: {
+                orderBy: { version: "desc" },
+                take: 1,
+                include: {
+                  diagramVersions: {
+                    orderBy: { version: "desc" },
+                    take: 1,
+                  },
+                },
+              },
+              jobs: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+              },
+            },
+          },
+          _count: {
+            select: { designRequests: true },
+          },
+        },
+      });
+
+      if (!template) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Template project not found",
+        });
+      }
+
+      return template;
     }),
 });

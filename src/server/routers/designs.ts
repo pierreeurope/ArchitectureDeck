@@ -11,6 +11,8 @@ const constraintsSchema = z.object({
 
 const scaleProfileSchema = z.enum(["PROTOTYPE", "DAU_1K", "DAU_1M"]);
 const inputTypeSchema = z.enum(["PROMPT", "REPO_URL"]);
+const detailLevelSchema = z.enum(["OVERVIEW", "STANDARD", "DETAILED"]);
+
 
 export const designsRouter = router({
   // Create a new design request and enqueue generation job
@@ -24,6 +26,8 @@ export const designsRouter = router({
         repoUrl: z.string().url().optional(),
         constraints: constraintsSchema.optional().default({}),
         scaleProfile: scaleProfileSchema.default("PROTOTYPE"),
+        detailLevel: detailLevelSchema.default("STANDARD"),
+        suggestions: z.array(z.string()).optional().default([]),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -62,6 +66,7 @@ export const designsRouter = router({
           repoUrl: input.repoUrl,
           constraints: input.constraints,
           scaleProfile: input.scaleProfile,
+          detailLevel: input.detailLevel,
           projectId: input.projectId,
           userId: ctx.userId,
         },
@@ -75,6 +80,8 @@ export const designsRouter = router({
         repoUrl: input.repoUrl,
         constraints: input.constraints,
         scaleProfile: input.scaleProfile,
+        detailLevel: input.detailLevel,
+        suggestions: input.suggestions || [],
       });
 
       return {
@@ -87,11 +94,30 @@ export const designsRouter = router({
   getRequest: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      // First try to find the request
       const request = await ctx.db.designRequest.findFirst({
-        where: {
-          id: input.id,
-          userId: ctx.userId,
-        },
+        where: { id: input.id },
+        include: { project: true },
+      });
+
+      if (!request) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Design request not found",
+        });
+      }
+
+      // Check access: user's own OR template project
+      if (request.userId !== ctx.userId && !request.project.isTemplate) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Design request not found",
+        });
+      }
+
+      // Fetch with all includes
+      const fullRequest = await ctx.db.designRequest.findFirst({
+        where: { id: input.id },
         include: {
           project: true,
           designVersions: {
@@ -109,14 +135,7 @@ export const designsRouter = router({
         },
       });
 
-      if (!request) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Design request not found",
-        });
-      }
-
-      return request;
+      return fullRequest;
     }),
 
   // List design requests for a project
@@ -129,12 +148,20 @@ export const designsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Verify project access
+      // Verify project access (user's own or template)
       const project = await ctx.db.project.findFirst({
-        where: { id: input.projectId, userId: ctx.userId },
+        where: { id: input.projectId },
       });
 
       if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      // Check access
+      if (project.userId !== ctx.userId && !project.isTemplate) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Project not found",
@@ -178,12 +205,21 @@ export const designsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Verify access
+      // Verify access (user's own or template)
       const request = await ctx.db.designRequest.findFirst({
-        where: { id: input.designRequestId, userId: ctx.userId },
+        where: { id: input.designRequestId },
+        include: { project: true },
       });
 
       if (!request) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Design request not found",
+        });
+      }
+
+      // Check access
+      if (request.userId !== ctx.userId && !request.project.isTemplate) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Design request not found",
@@ -219,12 +255,21 @@ export const designsRouter = router({
   listVersions: protectedProcedure
     .input(z.object({ designRequestId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Verify access
+      // Verify access (user's own or template)
       const request = await ctx.db.designRequest.findFirst({
-        where: { id: input.designRequestId, userId: ctx.userId },
+        where: { id: input.designRequestId },
+        include: { project: true },
       });
 
       if (!request) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Design request not found",
+        });
+      }
+
+      // Check access
+      if (request.userId !== ctx.userId && !request.project.isTemplate) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Design request not found",
@@ -253,12 +298,21 @@ export const designsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Verify access
+      // Verify access (user's own or template)
       const request = await ctx.db.designRequest.findFirst({
-        where: { id: input.designRequestId, userId: ctx.userId },
+        where: { id: input.designRequestId },
+        include: { project: true },
       });
 
       if (!request) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Design request not found",
+        });
+      }
+
+      // Check access
+      if (request.userId !== ctx.userId && !request.project.isTemplate) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Design request not found",
@@ -275,5 +329,76 @@ export const designsRouter = router({
       });
 
       return diagram;
+    }),
+
+  // Refine an existing design with a prompt
+  refineDesign: rateLimitedProcedure
+    .input(
+      z.object({
+        designRequestId: z.string(),
+        refinementPrompt: z.string().min(1).max(2000),
+        detailLevel: detailLevelSchema.optional(),
+        suggestions: z.array(z.string()).optional().default([]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get the existing design request and latest version
+      // Only allow refining user's own designs (not templates)
+      const request = await ctx.db.designRequest.findFirst({
+        where: { id: input.designRequestId, userId: ctx.userId },
+        include: {
+          project: true,
+          designVersions: {
+            orderBy: { version: "desc" },
+            take: 1,
+          },
+        },
+      });
+
+      if (!request) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Design request not found",
+        });
+      }
+
+      // Prevent refining template designs
+      if (request.project.isTemplate) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Cannot refine template designs",
+        });
+      }
+
+      const latestVersion = request.designVersions[0];
+      if (!latestVersion) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No existing design version to refine",
+        });
+      }
+
+      // Enqueue refinement job
+      const jobId = await enqueueDesignGeneration({
+        designRequestId: request.id,
+        inputType: request.inputType as "PROMPT" | "REPO_URL",
+        promptText: request.promptText || undefined,
+        repoUrl: request.repoUrl || undefined,
+        constraints: request.constraints as {
+          mustUse?: string[];
+          avoid?: string[];
+          preferredLanguage?: string;
+        },
+        scaleProfile: request.scaleProfile as "PROTOTYPE" | "DAU_1K" | "DAU_1M",
+        detailLevel: input.detailLevel || (request.detailLevel as "OVERVIEW" | "STANDARD" | "DETAILED"),
+        refinementPrompt: input.refinementPrompt,
+        existingDesign: latestVersion.designData,
+        suggestions: input.suggestions || [],
+      });
+
+      return {
+        jobId,
+        message: "Refinement job enqueued",
+      };
     }),
 });

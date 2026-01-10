@@ -25,6 +25,11 @@ export interface GenerateDesignJobData {
     preferredLanguage?: string;
   };
   scaleProfile: "PROTOTYPE" | "DAU_1K" | "DAU_1M";
+  detailLevel?: "OVERVIEW" | "STANDARD" | "DETAILED";
+  suggestions?: string[];
+  // For refinement
+  refinementPrompt?: string;
+  existingDesign?: unknown;
 }
 
 export interface RenderDiagramJobData {

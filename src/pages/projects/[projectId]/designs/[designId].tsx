@@ -7,8 +7,8 @@ import { LoadingScreen } from "@/components/ui/LoadingSpinner";
 import { Button } from "@/components/ui/Button";
 import { DesignViewer } from "@/components/designs/DesignViewer";
 import { JobProgress } from "@/components/designs/JobProgress";
+import { RefineDesignModal } from "@/components/designs/RefineDesignModal";
 import { formatDate } from "@/lib/utils";
-import { cn } from "@/lib/utils";
 
 const scaleLabels = {
   PROTOTYPE: "Prototype",
@@ -16,20 +16,27 @@ const scaleLabels = {
   DAU_1M: "1M DAU",
 };
 
+const detailLabels = {
+  OVERVIEW: "Overview",
+  STANDARD: "Standard",
+  DETAILED: "Detailed",
+};
+
 export default function DesignDetailPage() {
   const router = useRouter();
   const projectId = router.query.projectId as string;
   const designId = router.query.designId as string;
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [isRefineModalOpen, setIsRefineModalOpen] = useState(false);
 
   const { data: design, isLoading, refetch } = trpc.designs.getRequest.useQuery(
     { id: designId },
-    { enabled: !!designId }
+    { enabled: !!designId && router.isReady }
   );
 
-  const { data: versions } = trpc.designs.listVersions.useQuery(
+  const { data: versions, refetch: refetchVersions } = trpc.designs.listVersions.useQuery(
     { designRequestId: designId },
-    { enabled: !!designId }
+    { enabled: !!designId && router.isReady }
   );
 
   const { data: currentVersion } = trpc.designs.getVersion.useQuery(
@@ -37,7 +44,7 @@ export default function DesignDetailPage() {
       designRequestId: designId, 
       version: selectedVersion || undefined 
     },
-    { enabled: !!designId && (!!selectedVersion || (versions?.length ?? 0) > 0) }
+    { enabled: !!designId && router.isReady && (!!selectedVersion || (versions?.length ?? 0) > 0) }
   );
 
   const { data: diagram } = trpc.designs.getDiagram.useQuery(
@@ -45,10 +52,17 @@ export default function DesignDetailPage() {
       designRequestId: designId, 
       version: selectedVersion || undefined 
     },
-    { enabled: !!designId }
+    { enabled: !!designId && router.isReady }
   );
 
-  if (isLoading) {
+  const handleRefineSuccess = () => {
+    // Refetch data to show the new job
+    refetch();
+    refetchVersions();
+  };
+
+  // Show loading while router is initializing or query is loading
+  if (!router.isReady || isLoading) {
     return <LoadingScreen message="Loading design..." />;
   }
 
@@ -96,9 +110,14 @@ export default function DesignDetailPage() {
         <div className="card p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <h1 className="text-2xl font-bold text-void-100 truncate">{design.title}</h1>
                 <span className="badge-neutral shrink-0">{scaleLabels[design.scaleProfile]}</span>
+                {(design as any).detailLevel && (
+                  <span className="badge-info shrink-0">
+                    {detailLabels[(design as any).detailLevel as keyof typeof detailLabels] || (design as any).detailLevel}
+                  </span>
+                )}
               </div>
               
               <div className="flex flex-wrap items-center gap-4 text-sm text-void-500">
@@ -126,9 +145,23 @@ export default function DesignDetailPage() {
               </div>
             </div>
 
-            {/* Version Selector */}
-            {versions && versions.length > 1 && (
-              <div className="shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Refine Button */}
+              {hasDesign && !isProcessing && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsRefineModalOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Refine with AI
+                </Button>
+              )}
+
+              {/* Version Selector */}
+              {versions && versions.length > 1 && (
                 <select
                   value={selectedVersion || ""}
                   onChange={(e) => setSelectedVersion(e.target.value ? parseInt(e.target.value) : null)}
@@ -141,8 +174,8 @@ export default function DesignDetailPage() {
                     </option>
                   ))}
                 </select>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Input Preview */}
@@ -176,7 +209,10 @@ export default function DesignDetailPage() {
 
         {/* Job Progress (if processing) */}
         {isProcessing && latestJob && (
-          <JobProgress jobId={latestJob.id} onComplete={() => refetch()} />
+          <JobProgress jobId={latestJob.id} onComplete={() => {
+            refetch();
+            refetchVersions();
+          }} />
         )}
 
         {/* Failed State */}
@@ -191,6 +227,14 @@ export default function DesignDetailPage() {
             <p className="mt-2 text-sm text-void-400">
               There was an error generating this design. Please try again.
             </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsRefineModalOpen(true)}
+              className="mt-4"
+            >
+              Try Again
+            </Button>
           </div>
         )}
 
@@ -218,6 +262,15 @@ export default function DesignDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Refine Modal */}
+      <RefineDesignModal
+        isOpen={isRefineModalOpen}
+        onClose={() => setIsRefineModalOpen(false)}
+        designRequestId={designId}
+        currentDetailLevel={(design as any).detailLevel || "STANDARD"}
+        onSuccess={handleRefineSuccess}
+      />
     </>
   );
 }

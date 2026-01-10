@@ -181,38 +181,6 @@ async function main() {
             description: "Multi-layer caching: CDN for assets, Redis for API responses",
           },
         ],
-        roadmap: [
-          {
-            phase: "Phase 1: MVP",
-            items: [
-              "Core product catalog",
-              "Shopping cart",
-              "Basic checkout flow",
-              "User authentication",
-            ],
-            timeframe: "4 weeks",
-          },
-          {
-            phase: "Phase 2: Growth",
-            items: [
-              "Payment integration",
-              "Order tracking",
-              "Email notifications",
-              "Admin dashboard",
-            ],
-            timeframe: "4 weeks",
-          },
-          {
-            phase: "Phase 3: Scale",
-            items: [
-              "Performance optimization",
-              "Search improvements",
-              "Analytics integration",
-              "Mobile app",
-            ],
-            timeframe: "6 weeks",
-          },
-        ],
       },
     },
   });

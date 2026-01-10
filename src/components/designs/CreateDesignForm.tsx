@@ -13,6 +13,7 @@ interface CreateDesignFormProps {
 
 type InputType = "PROMPT" | "REPO_URL";
 type ScaleProfile = "PROTOTYPE" | "DAU_1K" | "DAU_1M";
+type DetailLevel = "OVERVIEW" | "STANDARD" | "DETAILED";
 
 export function CreateDesignForm({ projectId, onSuccess }: CreateDesignFormProps) {
   const router = useRouter();
@@ -23,9 +24,11 @@ export function CreateDesignForm({ projectId, onSuccess }: CreateDesignFormProps
   const [promptText, setPromptText] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
   const [scaleProfile, setScaleProfile] = useState<ScaleProfile>("PROTOTYPE");
+  const [detailLevel, setDetailLevel] = useState<DetailLevel>("STANDARD");
   const [mustUse, setMustUse] = useState("");
   const [avoid, setAvoid] = useState("");
   const [preferredLanguage, setPreferredLanguage] = useState("");
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
 
   const createDesign = trpc.designs.createRequest.useMutation({
     onSuccess: (data) => {
@@ -57,7 +60,9 @@ export function CreateDesignForm({ projectId, onSuccess }: CreateDesignFormProps
       promptText: inputType === "PROMPT" ? promptText : undefined,
       repoUrl: inputType === "REPO_URL" ? repoUrl : undefined,
       scaleProfile,
+      detailLevel,
       constraints,
+      suggestions: Array.from(selectedSuggestions),
     });
   };
 
@@ -66,6 +71,24 @@ export function CreateDesignForm({ projectId, onSuccess }: CreateDesignFormProps
     { value: "DAU_1K", label: "1K DAU — Small production workload" },
     { value: "DAU_1M", label: "1M DAU — Large scale production" },
   ];
+
+  const detailLevelInfo = {
+    OVERVIEW: {
+      title: "Overview",
+      description: "High-level view with main component groups",
+      icon: "🔭",
+    },
+    STANDARD: {
+      title: "Standard",
+      description: "Components with technologies and connections",
+      icon: "📊",
+    },
+    DETAILED: {
+      title: "Detailed",
+      description: "Full detail with frameworks, protocols, cloud services",
+      icon: "🔬",
+    },
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -149,6 +172,82 @@ export function CreateDesignForm({ projectId, onSuccess }: CreateDesignFormProps
         onChange={(e) => setScaleProfile(e.target.value as ScaleProfile)}
         options={scaleOptions}
       />
+
+      {/* Detail Level Selector */}
+      <div>
+        <label className="label">Diagram Detail Level</label>
+        <div className="grid grid-cols-3 gap-3">
+          {(["OVERVIEW", "STANDARD", "DETAILED"] as DetailLevel[]).map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => setDetailLevel(level)}
+              className={cn(
+                "p-4 rounded-xl border text-left transition-all",
+                detailLevel === level
+                  ? "bg-neon-cyan/10 border-neon-cyan"
+                  : "bg-ink border-void-700 hover:border-void-600"
+              )}
+            >
+              <div className="text-2xl mb-2">{detailLevelInfo[level].icon}</div>
+              <div className={cn(
+                "font-medium text-sm",
+                detailLevel === level ? "text-neon-cyan" : "text-void-200"
+              )}>
+                {detailLevelInfo[level].title}
+              </div>
+              <div className="text-xs text-void-500 mt-1">
+                {detailLevelInfo[level].description}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Suggestions */}
+      <div>
+        <label className="label mb-2">Quick Suggestions (Optional)</label>
+        <p className="text-xs text-void-500 mb-3">
+          Select one or more suggestions to enhance your architecture design
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "Add more cloud services", prompt: "Add more specific AWS/GCP cloud services to the architecture" },
+            { label: "Add monitoring", prompt: "Add monitoring, logging, and observability components" },
+            { label: "Add security layer", prompt: "Add a security layer with WAF, authentication, and encryption" },
+            { label: "Add CI/CD", prompt: "Add CI/CD pipeline and deployment components" },
+            { label: "Add caching", prompt: "Add caching layers with Redis and CDN for performance" },
+            { label: "Add message queue", prompt: "Add message queue for async processing (SQS, Kafka, or RabbitMQ)" },
+            { label: "Make it serverless", prompt: "Convert to serverless architecture using Lambda/Cloud Functions" },
+            { label: "Add microservices", prompt: "Split into microservices with API gateway" },
+          ].map((suggestion) => {
+            const isSelected = selectedSuggestions.has(suggestion.prompt);
+            return (
+              <button
+                key={suggestion.label}
+                type="button"
+                onClick={() => {
+                  const newSet = new Set(selectedSuggestions);
+                  if (isSelected) {
+                    newSet.delete(suggestion.prompt);
+                  } else {
+                    newSet.add(suggestion.prompt);
+                  }
+                  setSelectedSuggestions(newSet);
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                  isSelected
+                    ? "bg-neon-cyan/20 text-neon-cyan border border-neon-cyan"
+                    : "bg-void-800 text-void-400 border border-void-700 hover:border-void-600 hover:text-void-300"
+                )}
+              >
+                {suggestion.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Constraints Section */}
       <div className="border border-void-800 rounded-xl p-4 space-y-4">

@@ -34,6 +34,7 @@ model Project {
   name        String
   description String?
   userId      String   @map("user_id")
+  isTemplate  Boolean  @default(false) @map("is_template")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -41,6 +42,7 @@ model Project {
   designRequests DesignRequest[]
 
   @@index([userId])
+  @@index([isTemplate])
   @@map("projects")
 }
 
@@ -59,6 +61,12 @@ enum ScaleProfile {
   DAU_1M       // 1,000,000 daily active users
 }
 
+enum DetailLevel {
+  OVERVIEW     // High-level view with main components only
+  STANDARD     // Default detail with components and connections
+  DETAILED     // Full detail with frameworks, cloud providers, protocols
+}
+
 model DesignRequest {
   id           String       @id @default(cuid())
   title        String
@@ -66,6 +74,7 @@ model DesignRequest {
   promptText   String?      @map("prompt_text")
   repoUrl      String?      @map("repo_url")
   scaleProfile ScaleProfile @default(PROTOTYPE) @map("scale_profile")
+  detailLevel  DetailLevel  @default(STANDARD) @map("detail_level")
 
   // Constraints stored as JSONB
   constraints Json @default("{}")

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { MermaidDiagram } from "./MermaidDiagram";
+import { TechBadge } from "./TechIcon";
 
 interface DesignData {
   components: Array<{
@@ -8,32 +9,38 @@ interface DesignData {
     type: string;
     description: string;
     technologies: string[];
+    icon?: string;
+    cloudProvider?: string;
+    framework?: string;
   }>;
   dataStores: Array<{
     name: string;
     type: string;
     description: string;
     technology: string;
+    icon?: string;
+    cloudService?: string;
   }>;
   apis: Array<{
     name: string;
     type: string;
     description: string;
     endpoints?: string[];
+    protocol?: string;
+    authentication?: string;
   }>;
   security: Array<{
     category: string;
     measures: string[];
+    tools?: string[];
   }>;
   scaleChanges: Array<{
     category: string;
     description: string;
+    services?: string[];
   }>;
-  roadmap: Array<{
-    phase: string;
-    items: string[];
-    timeframe: string;
-  }>;
+  cloudProvider?: string;
+  architectureStyle?: string;
 }
 
 interface DesignViewerProps {
@@ -42,7 +49,7 @@ interface DesignViewerProps {
   svgContent?: string;
 }
 
-type TabId = "diagram" | "components" | "datastores" | "apis" | "security" | "scale" | "roadmap";
+type TabId = "diagram" | "components" | "datastores" | "apis" | "security" | "scale";
 
 export function DesignViewer({ designData, mermaidSource, svgContent }: DesignViewerProps) {
   const [activeTab, setActiveTab] = useState<TabId>("diagram");
@@ -54,11 +61,28 @@ export function DesignViewer({ designData, mermaidSource, svgContent }: DesignVi
     { id: "apis", label: "APIs", icon: <ApiIcon /> },
     { id: "security", label: "Security", icon: <SecurityIcon /> },
     { id: "scale", label: "Scale", icon: <ScaleIcon /> },
-    { id: "roadmap", label: "Roadmap", icon: <RoadmapIcon /> },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Architecture Overview */}
+      {(designData.cloudProvider || designData.architectureStyle) && (
+        <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-neon-cyan/5 to-emerald-500/5 rounded-xl border border-neon-cyan/20">
+          {designData.architectureStyle && (
+            <div className="flex items-center gap-2">
+              <span className="text-void-400 text-sm">Architecture:</span>
+              <span className="badge-info">{designData.architectureStyle}</span>
+            </div>
+          )}
+          {designData.cloudProvider && (
+            <div className="flex items-center gap-2">
+              <span className="text-void-400 text-sm">Cloud:</span>
+              <TechBadge name={designData.cloudProvider} />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tab Navigation */}
       <div className="flex gap-1 p-1 bg-ink-light rounded-xl border border-void-800 overflow-x-auto">
         {tabs.map((tab) => (
@@ -98,9 +122,6 @@ export function DesignViewer({ designData, mermaidSource, svgContent }: DesignVi
         {activeTab === "scale" && (
           <ScaleTab scaleChanges={designData.scaleChanges} />
         )}
-        {activeTab === "roadmap" && (
-          <RoadmapTab roadmap={designData.roadmap} />
-        )}
       </div>
     </div>
   );
@@ -126,17 +147,29 @@ function ComponentsTab({ components }: { components: DesignData["components"] })
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {components.map((component, idx) => (
-        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg">
+        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg hover:border-void-700 transition-colors">
           <div className="flex items-start justify-between mb-2">
             <h4 className="font-medium text-void-100">{component.name}</h4>
             <span className="badge-info">{component.type}</span>
           </div>
           <p className="text-sm text-void-400 mb-3">{component.description}</p>
+          
+          {/* Cloud & Framework badges */}
+          {(component.cloudProvider || component.framework) && (
+            <div className="flex gap-2 mb-3">
+              {component.cloudProvider && (
+                <TechBadge name={component.cloudProvider} />
+              )}
+              {component.framework && (
+                <TechBadge name={component.framework} />
+              )}
+            </div>
+          )}
+          
+          {/* Technology badges */}
           <div className="flex flex-wrap gap-1.5">
             {component.technologies.map((tech, i) => (
-              <span key={i} className="text-xs px-2 py-0.5 bg-void-800 text-void-300 rounded">
-                {tech}
-              </span>
+              <TechBadge key={i} name={tech} />
             ))}
           </div>
         </div>
@@ -149,17 +182,27 @@ function DataStoresTab({ dataStores }: { dataStores: DesignData["dataStores"] })
   return (
     <div className="space-y-4">
       {dataStores.map((store, idx) => (
-        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg">
+        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg hover:border-void-700 transition-colors">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-lg bg-neon-magenta/20 border border-neon-magenta/30 flex items-center justify-center">
               <DatabaseIcon className="w-5 h-5 text-neon-magenta" />
             </div>
-            <div>
+            <div className="flex-1">
               <h4 className="font-medium text-void-100">{store.name}</h4>
-              <span className="text-xs text-void-400">{store.type} — {store.technology}</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-void-400">{store.type}</span>
+                <span className="text-void-600">•</span>
+                <TechBadge name={store.technology} />
+              </div>
             </div>
           </div>
-          <p className="text-sm text-void-400 pl-13">{store.description}</p>
+          <p className="text-sm text-void-400 mt-2">{store.description}</p>
+          {store.cloudService && (
+            <div className="mt-3">
+              <span className="text-xs text-void-500">Managed Service: </span>
+              <TechBadge name={store.cloudService} />
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -170,14 +213,30 @@ function ApisTab({ apis }: { apis: DesignData["apis"] }) {
   return (
     <div className="space-y-4">
       {apis.map((api, idx) => (
-        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg">
+        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg hover:border-void-700 transition-colors">
           <div className="flex items-start justify-between mb-2">
             <h4 className="font-medium text-void-100">{api.name}</h4>
-            <span className="badge-warning">{api.type}</span>
+            <div className="flex gap-2">
+              <span className="badge-warning">{api.type}</span>
+              {api.protocol && (
+                <span className="badge-info">{api.protocol}</span>
+              )}
+            </div>
           </div>
           <p className="text-sm text-void-400 mb-3">{api.description}</p>
+          
+          {api.authentication && (
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-xs text-void-500">Auth:</span>
+              <span className="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded border border-emerald-500/30">
+                🔐 {api.authentication}
+              </span>
+            </div>
+          )}
+          
           {api.endpoints && api.endpoints.length > 0 && (
             <div className="space-y-1">
+              <span className="text-xs text-void-500">Endpoints:</span>
               {api.endpoints.map((endpoint, i) => (
                 <code key={i} className="block text-xs bg-void-900 px-2 py-1 rounded text-neon-cyan font-mono">
                   {endpoint}
@@ -195,12 +254,12 @@ function SecurityTab({ security }: { security: DesignData["security"] }) {
   return (
     <div className="space-y-4">
       {security.map((item, idx) => (
-        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg">
+        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg hover:border-void-700 transition-colors">
           <h4 className="font-medium text-void-100 mb-3 flex items-center gap-2">
             <SecurityIcon className="w-4 h-4 text-emerald-400" />
             {item.category}
           </h4>
-          <ul className="space-y-2">
+          <ul className="space-y-2 mb-3">
             {item.measures.map((measure, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-void-300">
                 <span className="text-emerald-400 mt-1">✓</span>
@@ -208,6 +267,16 @@ function SecurityTab({ security }: { security: DesignData["security"] }) {
               </li>
             ))}
           </ul>
+          {item.tools && item.tools.length > 0 && (
+            <div className="pt-3 border-t border-void-800">
+              <span className="text-xs text-void-500 block mb-2">Tools & Services:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {item.tools.map((tool, i) => (
+                  <TechBadge key={i} name={tool} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -218,42 +287,21 @@ function ScaleTab({ scaleChanges }: { scaleChanges: DesignData["scaleChanges"] }
   return (
     <div className="space-y-4">
       {scaleChanges.map((change, idx) => (
-        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg">
-          <h4 className="font-medium text-void-100 mb-2">{change.category}</h4>
-          <p className="text-sm text-void-400">{change.description}</p>
+        <div key={idx} className="p-4 bg-ink border border-void-800 rounded-lg hover:border-void-700 transition-colors">
+          <h4 className="font-medium text-void-100 mb-2 flex items-center gap-2">
+            <ScaleIcon className="w-4 h-4 text-neon-lime" />
+            {change.category}
+          </h4>
+          <p className="text-sm text-void-400 mb-3">{change.description}</p>
+          {change.services && change.services.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {change.services.map((service, i) => (
+                <TechBadge key={i} name={service} />
+              ))}
+            </div>
+          )}
         </div>
       ))}
-    </div>
-  );
-}
-
-function RoadmapTab({ roadmap }: { roadmap: DesignData["roadmap"] }) {
-  return (
-    <div className="relative">
-      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-neon-cyan via-emerald-400 to-neon-lime" />
-      <div className="space-y-6">
-        {roadmap.map((phase, idx) => (
-          <div key={idx} className="relative pl-10">
-            <div className="absolute left-2.5 top-1.5 w-3 h-3 rounded-full bg-neon-cyan shadow-lg shadow-neon-cyan/50" />
-            <div className="p-4 bg-ink border border-void-800 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-void-100">{phase.phase}</h4>
-                <span className="text-xs text-void-500 bg-void-800 px-2 py-1 rounded">
-                  {phase.timeframe}
-                </span>
-              </div>
-              <ul className="space-y-1.5">
-                {phase.items.map((item, i) => (
-                  <li key={i} className="text-sm text-void-400 flex items-start gap-2">
-                    <span className="text-void-600">•</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -307,10 +355,3 @@ function ScaleIcon({ className }: { className?: string }) {
   );
 }
 
-function RoadmapIcon({ className }: { className?: string }) {
-  return (
-    <svg className={cn("w-4 h-4", className)} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-    </svg>
-  );
-}

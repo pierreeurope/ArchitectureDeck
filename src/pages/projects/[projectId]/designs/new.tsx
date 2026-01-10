@@ -15,7 +15,7 @@ export default function NewDesignPage() {
 
   const { data: project, isLoading } = trpc.projects.get.useQuery(
     { id: projectId },
-    { enabled: !!projectId }
+    { enabled: !!projectId && router.isReady }
   );
 
   const handleSuccess = (designId: string, jobId: string) => {
@@ -28,7 +28,8 @@ export default function NewDesignPage() {
     }
   };
 
-  if (isLoading) {
+  // Show loading while router is initializing or query is loading
+  if (!router.isReady || isLoading) {
     return <LoadingScreen message="Loading project..." />;
   }
 
